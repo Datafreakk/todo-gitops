@@ -209,6 +209,24 @@ curl http://localhost:8080/todos
 make -f local/Makefile status
 ```
 
+## Screenshots
+
+### ArgoCD Root App
+
+![ArgoCD root app](docs/images/argo-root.png)
+
+### ArgoCD Applications
+
+![ArgoCD applications](docs/images/argo-app.png)
+
+### Grafana Dashboard
+
+![Grafana dashboard](docs/images/monitor.png)
+
+### Application UI
+
+![Grafana dashboard](docs/images/image.png)
+
 ## GitOps flow
 
 ### Dev (automatic)
