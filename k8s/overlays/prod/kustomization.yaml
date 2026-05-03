@@ -5,6 +5,7 @@ namespace: todo-prod
 
 resources:
   - ../../base
+  - namespace.yaml
 
 # Kustomize image transform — updated by cd-promote.yml via PR
 images:

@@ -5,6 +5,7 @@ namespace: todo-dev
 
 resources:
   - ../../base
+  - namespace.yaml
 
 # Kustomize image transform — CI updates this value via:
 # kustomize edit set image ghcr.io/datafreakk/todo-api=ghcr.io/datafreakk/todo-api:sha-<commit>
