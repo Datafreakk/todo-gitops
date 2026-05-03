@@ -12,7 +12,7 @@ resources:
 images:
 - name: ghcr.io/datafreakk/todo-api
   newName: ghcr.io/datafreakk/todo-api
-  newTag: sha-fa05304
+  newTag: sha-32c3218
 
 patches:
 - path: patch-resources.yaml
