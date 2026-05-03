@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Remote base pinned to ArgoCD v2.13.0
+# To upgrade: change the tag here, open a PR, review the diff, merge.
+# ArgoCD will then sync its own upgrade (manages itself).
+resources:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.0/manifests/install.yaml
+
+namespace: argocd
+
+patches:
+  - path: patch-argocd.yaml
+    target:
+      kind: Deployment
+      name: argocd-server

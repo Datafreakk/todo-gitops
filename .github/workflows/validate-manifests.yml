@@ -1,0 +1,45 @@
+name: Validate Manifests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "k8s/**"
+      - "argocd/**"
+      - "monitoring/**"
+
+jobs:
+  validate:
+    name: Kustomize Build + Dry Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Validate k8s/overlays/dev
+        run: kustomize build k8s/overlays/dev | kubectl apply --dry-run=client -f -
+
+      - name: Validate k8s/overlays/prod
+        run: kustomize build k8s/overlays/prod | kubectl apply --dry-run=client -f -
+
+      - name: Validate monitoring manifests
+        run: |
+          kubectl apply --dry-run=client -f monitoring/prometheus/namespace.yaml
+          kubectl apply --dry-run=client -f monitoring/prometheus/rbac.yaml
+          kubectl apply --dry-run=client -f monitoring/prometheus/configmap.yaml
+          kubectl apply --dry-run=client -f monitoring/prometheus/pvc.yaml
+          kubectl apply --dry-run=client -f monitoring/prometheus/deployment.yaml
+          kubectl apply --dry-run=client -f monitoring/prometheus/service.yaml
+          kubectl apply --dry-run=client -f monitoring/grafana/deployment.yaml
+          kubectl apply --dry-run=client -f monitoring/grafana/service.yaml

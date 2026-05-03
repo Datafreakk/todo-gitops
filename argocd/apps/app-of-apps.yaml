@@ -1,0 +1,30 @@
+# App of Apps — root ArgoCD Application that manages all child apps.
+# Apply this once manually after ArgoCD is installed:
+#   kubectl apply -f argocd/apps/app-of-apps.yaml -n argocd
+#
+# ArgoCD then self-manages todo-api-dev and todo-api-prod from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Datafreakk/todo-gitops.git
+    targetRevision: main
+    path: argocd/apps
+    directory:
+      recurse: false
+      exclude: app-of-apps.yaml  # prevent self-referencing loop
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

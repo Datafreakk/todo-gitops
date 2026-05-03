@@ -1,0 +1,87 @@
+name: Promote to Prod
+
+# Manually triggered — pick the image SHA to promote from dev to prod.
+# This workflow opens a PR (not a direct push) so a human must approve before
+# ArgoCD syncs prod. The PR is the audit trail: who promoted what, when.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to promote (e.g. sha-abc1234). Leave blank to use current dev tag."
+        required: false
+        type: string
+
+jobs:
+  promote:
+    name: Open Promotion PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # Read current tag from dev overlay
+            TAG=$(grep 'newTag' k8s/overlays/dev/kustomization.yaml | awk '{print $2}')
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create promotion branch
+        run: |
+          BRANCH="promote/${{ steps.tag.outputs.tag }}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Update prod overlay image tag
+        run: |
+          cd k8s/overlays/prod
+          kustomize edit set image ghcr.io/datafreakk/todo-api=ghcr.io/datafreakk/todo-api:${{ steps.tag.outputs.tag }}
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/prod/kustomization.yaml
+          git commit -m "promote: ${{ steps.tag.outputs.tag }} → prod"
+          git push origin "${{ env.branch }}"
+
+      - name: Open Pull Request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `promote: ${{ steps.tag.outputs.tag }} → prod`,
+              body: [
+                '## Production Promotion',
+                '',
+                `Promoting image \`${{ steps.tag.outputs.tag }}\` from dev to prod.`,
+                '',
+                '**Review checklist:**',
+                '- [ ] Image passed CI (Trivy scan, build)',
+                '- [ ] Verified working in dev namespace',
+                '- [ ] No breaking changes',
+                '',
+                'Once merged, ArgoCD will automatically sync prod within 3 minutes.',
+              ].join('\n'),
+              head: '${{ env.branch }}',
+              base: 'main',
+              labels: ['promotion', 'prod'],
+            });
+            console.log(`PR created: ${pr.data.html_url}`);

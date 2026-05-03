@@ -1,0 +1,40 @@
+# Default-deny all ingress to todo-api pods.
+# Explicitly allow only:
+#   1. ingress-nginx → port 8080 (external traffic via Ingress)
+#   2. monitoring namespace → port 8080 (Prometheus scraping /metrics)
+#   3. argocd namespace → port 8080 (ArgoCD health checks)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: todo-api-default-deny
+spec:
+  podSelector:
+    matchLabels:
+      app: todo-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow nginx-ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+    # Allow Prometheus scraping from monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8080
+          protocol: TCP
+    # Allow ArgoCD health checks
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argocd
+      ports:
+        - port: 8080
+          protocol: TCP

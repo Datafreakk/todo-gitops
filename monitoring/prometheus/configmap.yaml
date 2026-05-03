@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: []
+
+    rule_files:
+      - "/etc/prometheus/alert-rules.yml"
+
+    scrape_configs:
+      # Scrape todo-api pods across todo-dev and todo-prod namespaces
+      # Uses pod annotations: prometheus.io/scrape, prometheus.io/path, prometheus.io/port
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - todo-dev
+                - todo-prod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+
+  alert-rules.yml: |
+    groups:
+      - name: todo-api
+        interval: 15s
+        rules:
+          - alert: HighTodoCreationRate
+            expr: rate(todos_created_total[5m]) > 5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High TODO creation rate: {{ $value }} per second"
+              description: "TODO API is creating {{ $value }} todos per second"
+
+          - alert: HighMemoryUsage
+            expr: process_resident_memory_bytes{app="todo-api"} / 1024 / 1024 > 100
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High API memory usage"
+              description: "API using {{ $value }}MB of memory"
+
+          - alert: PodDown
+            expr: up{job="kubernetes-pods"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod is down"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is down"
+
+          - alert: HighErrorRate
+            expr: (rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) * 100 > 5
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High error rate detected"
+              description: "Error rate is {{ $value }}%"

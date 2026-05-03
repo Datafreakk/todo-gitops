@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  todo-api.json: |
+    {
+      "title": "TodoApi — SRE Dashboard",
+      "uid": "todo-api",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "15s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request Rate (req/s)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "sum(rate(http_requests_total[1m]))",
+            "legendFormat": "req/s"
+          }]
+        },
+        {
+          "id": 2,
+          "title": "Error Rate (%)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "100 * sum(rate(http_requests_total{status=~\"5..\"}[1m])) / sum(rate(http_requests_total[1m]))",
+            "legendFormat": "error %"
+          }],
+          "options": { "thresholds": { "steps": [{ "value": 1, "color": "red" }] } }
+        },
+        {
+          "id": 3,
+          "title": "Active TODOs",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "todos_current_count",
+            "legendFormat": "count"
+          }]
+        },
+        {
+          "id": 4,
+          "title": "P99 Latency (s)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+            "legendFormat": "p99"
+          }]
+        },
+        {
+          "id": 5,
+          "title": "Request Rate by Endpoint",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "sum(rate(http_requests_total[1m])) by (method, path)",
+            "legendFormat": "{{ method }} {{ path }}"
+          }]
+        },
+        {
+          "id": 6,
+          "title": "Latency Percentiles",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "TODO Operations",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "rate(todos_created_total[1m])",
+              "legendFormat": "created/s"
+            },
+            {
+              "datasource": "Prometheus",
+              "expr": "rate(todos_deleted_total[1m])",
+              "legendFormat": "deleted/s"
+            },
+            {
+              "datasource": "Prometheus",
+              "expr": "rate(todos_completed_total[1m])",
+              "legendFormat": "completed/s"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Failed Operations",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [{
+            "datasource": "Prometheus",
+            "expr": "sum(rate(todos_operation_failed_total[1m])) by (operation)",
+            "legendFormat": "{{ operation }}"
+          }]
+        }
+      ]
+    }

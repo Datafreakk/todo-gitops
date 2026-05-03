@@ -1,0 +1,15 @@
+# Kind uses the 'standard' StorageClass (rancher.io/local-path provisioner) by default.
+# Data persists across pod restarts but is lost on `kind delete cluster`.
+# For persistence across cluster recreations, kind-config.yaml maps a host path via extraMounts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 2Gi
