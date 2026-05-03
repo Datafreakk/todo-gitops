@@ -65,8 +65,10 @@ flowchart TB
             aoa["App of Apps\n(root ArgoCD app)"]
             app_dev["ArgoCD App\ntodo-api-dev"]
             app_prod["ArgoCD App\ntodo-api-prod"]
+            app_mon["ArgoCD App\nmonitoring"]
             aoa --> app_dev
             aoa --> app_prod
+            aoa --> app_mon
         end
 
         subgraph TODODEV["todo-dev namespace"]
@@ -179,11 +181,8 @@ make -f local/Makefile cluster-up
 # 2. Install ArgoCD v2.13.0
 make -f local/Makefile install-argocd
 
-# 3. Apply App of Apps — ArgoCD takes over from here
+# 3. Apply App of Apps — ArgoCD takes over from here, including monitoring
 make -f local/Makefile bootstrap-argocd
-
-# 4. Apply monitoring stack
-make -f local/Makefile apply-monitoring
 ```
 
 ### Access UIs

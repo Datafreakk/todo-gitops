@@ -2,7 +2,7 @@
 # Apply this once manually after ArgoCD is installed:
 #   kubectl apply -f argocd/apps/app-of-apps.yaml -n argocd
 #
-# ArgoCD then self-manages todo-api-dev and todo-api-prod from Git.
+# ArgoCD then self-manages todo-api-dev, todo-api-prod, and monitoring from Git.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

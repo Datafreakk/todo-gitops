@@ -15,8 +15,8 @@ help:
 	@echo ""
 	@echo "  make cluster-up           Create kind cluster + install nginx-ingress"
 	@echo "  make install-argocd       Install ArgoCD via Kustomize (pinned v2.13.0)"
-	@echo "  make bootstrap-argocd     Apply App of Apps to ArgoCD"
-	@echo "  make apply-monitoring     Apply Prometheus + Grafana"
+	@echo "  make bootstrap-argocd     Apply App of Apps to ArgoCD (apps + monitoring)"
+	@echo "  make apply-monitoring     Apply Prometheus + Grafana manually if needed"
 	@echo "  make port-forward-argocd  ArgoCD UI → https://localhost:8443"
 	@echo "  make port-forward-grafana Grafana UI → http://localhost:3000"
 	@echo "  make port-forward-prometheus Prometheus → http://localhost:9090"
@@ -69,7 +69,7 @@ install-argocd:
 bootstrap-argocd:
 	@echo "→ Applying App of Apps..."
 	kubectl apply -f argocd/apps/app-of-apps.yaml -n $(ARGOCD_NS)
-	@echo "✓ App of Apps applied. ArgoCD will sync todo-api-dev and todo-api-prod from Git."
+	@echo "✓ App of Apps applied. ArgoCD will sync todo-api-dev, todo-api-prod, and monitoring from Git."
 
 ## ── Monitoring ───────────────────────────────────────────────────────────────
 
