@@ -3,12 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
-    paths:
-      - "app/**"
   pull_request:
     branches: [main]
-    paths:
-      - "app/**"
+  workflow_dispatch:  # allow manual trigger from GitHub Actions UI
 
 env:
   REGISTRY: ghcr.io
