@@ -4,21 +4,22 @@ kind: Kustomization
 namespace: todo-dev
 
 resources:
-  - ../../base
-  - namespace.yaml
+- ../../base
+- namespace.yaml
 
 # Kustomize image transform — CI updates this value via:
 # kustomize edit set image ghcr.io/datafreakk/todo-api=ghcr.io/datafreakk/todo-api:sha-<commit>
 images:
-  - name: ghcr.io/datafreakk/todo-api
-    newTag: latest  # replaced by ci.yml on every push to main
+- name: ghcr.io/datafreakk/todo-api
+  newName: ghcr.io/datafreakk/todo-api
+  newTag: sha-8c3f936
 
 patches:
-  - path: patch-resources.yaml
-    target:
-      kind: Deployment
-      name: todo-api
+- path: patch-resources.yaml
+  target:
+    kind: Deployment
+    name: todo-api
 
 replicas:
-  - name: todo-api
-    count: 1
+- count: 1
+  name: todo-api
