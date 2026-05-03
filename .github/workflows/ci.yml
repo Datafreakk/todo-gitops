@@ -65,7 +65,8 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          exit-code: "1"        # fail the build on CRITICAL or HIGH findings
+          ignore-unfixed: true  # only fail on vulnerabilities that have a fix available
+          exit-code: "1"        # fail the build on actionable CRITICAL or HIGH findings
 
       - name: Upload Trivy SARIF to GitHub Security tab
         if: always()
