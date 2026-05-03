@@ -14,25 +14,120 @@ A mono-repo containing a .NET 9 minimal API (TodoApi) and the full GitOps platfo
 
 ## Architecture
 
+### CI/CD GitOps Flow
+
+```mermaid
+flowchart LR
+    subgraph DEV["👨‍💻 Developer"]
+        code["git push\nto main"]
+    end
+
+    subgraph GH["GitHub"]
+        direction TB
+        ci["GitHub Actions CI\n─────────────────\n• Build multi-platform image\n  (linux/amd64 + linux/arm64)\n• Push → GHCR\n• Commit updated image tag\n  to k8s/overlays/dev/"]
+        repo[("Git Repo\ntodo-gitops")]
+        ghcr[("GHCR\nghcr.io/datafreakk/\ntodo-api:sha-xxxx")]
+        ci -->|push image| ghcr
+        ci -->|commit tag| repo
+    end
+
+    subgraph CLUSTER["☸️ kind Cluster (local)"]
+        direction TB
+        argo["ArgoCD\n─────────────\npolls repo every 3 min\ndetects changed tag\nruns kustomize build\napplies diff"]
+        subgraph NAMESPACES["Namespaces"]
+            dev["todo-dev\n────────\nreplicas=1\nauto-sync"]
+            prod["todo-prod\n──────────\nreplicas=3\nPR-gated"]
+        end
+        subgraph OBS["Observability"]
+            prom["Prometheus\nscrapes /metrics"]
+            graf["Grafana\ndashboard"]
+            prom --> graf
+        end
+        argo -->|sync| dev
+        argo -->|sync on PR merge| prod
+        dev -->|/metrics| prom
+        prod -->|/metrics| prom
+    end
+
+    code --> ci
+    repo -->|watched by| argo
+    ghcr -->|pulled by| CLUSTER
 ```
-git push → GitHub Actions CI
-  ├── Build multi-platform image (linux/amd64 + linux/arm64)
-  ├── Push to ghcr.io/datafreakk/todo-api:sha-<commit>
-  └── Update k8s/overlays/dev/kustomization.yaml image tag → commit
 
-              ↓ ArgoCD polls GitHub every 3 min
+### Cluster Internal Design
 
-  ArgoCD (running inside kind cluster)
-  ├── Detects Git change
-  ├── Runs kustomize build k8s/overlays/dev
-  └── Applies diff to todo-dev namespace
+```mermaid
+flowchart TB
+    subgraph KIND["kind Cluster"]
+        direction TB
 
-              ↓
+        subgraph ARGOCD["argocd namespace"]
+            aoa["App of Apps\n(root ArgoCD app)"]
+            app_dev["ArgoCD App\ntodo-api-dev"]
+            app_prod["ArgoCD App\ntodo-api-prod"]
+            aoa --> app_dev
+            aoa --> app_prod
+        end
 
-  TodoApi pod in todo-dev namespace
-  ├── GET /todos, POST /todos, PUT /todos/{id}, DELETE /todos/{id}
-  ├── GET /health  ← liveness + readiness probes
-  └── GET /metrics ← Prometheus scrape endpoint
+        subgraph TODODEV["todo-dev namespace"]
+            dep_dev["Deployment\nreplicas=1\ncpu: 50m–500m\nmem: 64Mi–256Mi"]
+            svc_dev["Service\nClusterIP :80"]
+            sa_dev["ServiceAccount\ntodo-api"]
+            np_dev["NetworkPolicy\ndefault-deny ingress\nallow: prometheus, ingress-nginx"]
+            dep_dev --- svc_dev
+        end
+
+        subgraph TODOPROD["todo-prod namespace"]
+            dep_prod["Deployment\nreplicas=3\ncpu: 100m–1000m\nmem: 128Mi–512Mi"]
+            svc_prod["Service\nClusterIP :80"]
+        end
+
+        subgraph MON["monitoring namespace"]
+            prom["Prometheus\nClusterRole → scrape\nall namespaces\nPVC 2Gi"]
+            graf["Grafana\npre-built dashboard\nport 3000"]
+            prom --> graf
+        end
+
+        subgraph INGRESS["ingress-nginx namespace"]
+            nginx["ingress-nginx\nports 80/443\nexposed to host"]
+        end
+
+        app_dev -->|kustomize build\noverlays/dev| dep_dev
+        app_prod -->|kustomize build\noverlays/prod| dep_prod
+        prom -->|scrape :8080/metrics| dep_dev
+        prom -->|scrape :8080/metrics| dep_prod
+        nginx -->|route| svc_dev
+    end
+
+    user(["User / curl"])
+    user -->|port-forward| svc_dev
+```
+
+### Promotion Flow (dev → prod)
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub Actions
+    participant GHCR as GHCR Registry
+    participant Repo as Git Repo
+    participant Argo as ArgoCD
+    participant DevNS as todo-dev
+    participant ProdNS as todo-prod
+
+    Dev->>GH: git push main
+    GH->>GHCR: docker push sha-abc1234
+    GH->>Repo: commit: update dev tag → sha-abc1234
+    Argo->>Repo: poll (every 3 min)
+    Argo->>DevNS: kustomize apply (auto-sync)
+    Note over DevNS: New pod running sha-abc1234
+
+    Dev->>GH: workflow_dispatch: promote sha-abc1234
+    GH->>Repo: open PR: update prod tag → sha-abc1234
+    Dev->>Repo: review + merge PR
+    Argo->>Repo: poll detects prod change
+    Argo->>ProdNS: kustomize apply (auto-sync)
+    Note over ProdNS: 3 replicas running sha-abc1234
 ```
 
 ## Repo structure
